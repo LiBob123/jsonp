@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>封装</title>
+    <script>
+        function jsonp(options) {
+            options = options || {};
+            if (!options.url || !options.callback) {
+                throw new Error("参数不合法");
+            }
+
+            //创建 script 标签并加入到页面中
+//            动态创建回调函数名字
+            var callbackName = ('jsonp_' + Math.random()).replace(".", "");
+            options.data[options.callback] = callbackName;
+//            获取head标签
+            var headElem = document.getElementsByTagName('head')[0];
+//            格式化数据
+            var params = formatParams(options.data);
+//            创建script标签
+            var scriptElem = document.createElement('script');
+//            将上面创建的script标签追加到head标签内
+            headElem.appendChild(scriptElem);
+
+            // 创建jsonp回调函数
+            window[callbackName] = function (json) {
+//                清楚延时函数，是因为此时已经请求成功
+                clearTimeout(scriptElem.timer);
+//                删除动态创建的script
+                headElem.removeChild(scriptElem);
+                // 给全局jsonp回调函数赋值为null
+                window[callbackName] = null;
+//                执行用户自定义的请求成功的处理程序
+                options.success && options.success(json);
+            };
+
+            // 发送请求
+            scriptElem.src = options.url + '?' + params;
+
+            // 超时处理
+            // 通过设置超时时间，来判断jsonp请求是否成功
+            // 如果延迟函数被执行，表面请求失败。
+            if (options.time) {
+                scriptElem.timer = setTimeout(function () {
+                    window[callbackName] = null;
+                    headElem.removeChild(scriptElem);
+                    options.fail && options.fail({message: "请求超时."});
+                }, options.time);
+            }
+        }
+
+        //格式化参数
+        function formatParams(data) {
+            var ret = [];
+            for (var name in data) {
+                ret.push(encodeURIComponent(name) + '=' + encodeURIComponent(data[name]));
+            }
+            return ret.join('&');
+        }
+        jsonp({
+            url: 'http://localhost:53923/JsonpHandler.ashx',
+            data: {},
+            success: function (data) {
+                console.log(data.name + '|' + data.age);
+            },
+            callback: 'callback',
+            time: 500,// 超时
+            fail: function (e) {
+                console.log(e.message);
+            }
+        });
+    </script>
+</head>
+<body>
+
+</body>
+</html>
